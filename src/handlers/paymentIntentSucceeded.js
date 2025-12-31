@@ -4,29 +4,29 @@ export async function handlePaymentIntentSucceeded(event) {
   const pi = event.data.object;
   const connectedAccount = event.account;
 
-  // Only process Sunny Days connected account
   if (connectedAccount !== process.env.SUNNY_DAYS_STRIPE_ACCOUNT) return;
 
   const md = pi.metadata || {};
 
-  const bookingNumber = md.booking_number;
-  const pmsChargeAmount = Number(md.pms_charge_amount);
-
-  if (!bookingNumber || isNaN(pmsChargeAmount)) {
-    console.warn("⚠️ Missing required PMS metadata — skipping Sunny Days charge", {
-      bookingNumber,
-      pmsChargeAmount,
+  if (!md.reservation_uid || !md.base_amount_cents) {
+    console.warn("⚠️ Missing required metadata — skipping Sunny Days charge", {
       metadata: md
     });
     return;
   }
 
+  const bookingNumber =
+    "BKG-" + md.reservation_uid.replace(/^RES-/, "");
+
+  const chargeAmount = Number(md.base_amount_cents) / 100;
+
   const payload = {
     booking_number: bookingNumber,
     reservation_id: "",
     unit_id: "",
-    charge_type: md.charge_type || "pool_heat",
-    charge_amount: Number(pmsChargeAmount.toFixed(2)),
+    charge_type:
+      md.block_type === "guest_heating" ? "pool_heat" : "spa_heat",
+    charge_amount: Number(chargeAmount.toFixed(2)),
     transaction_id: pi.id
   };
 
